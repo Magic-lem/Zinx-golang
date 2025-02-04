@@ -5,6 +5,7 @@ import (
     "net"
     "time"
     "workspace/src/zinx/ziface"
+    "errors"
 )
 
 
@@ -15,6 +16,18 @@ type Server struct {
     IP string
     Port int
 }
+
+//============== 定义一个回显的业务处理API ===================
+// TODO：目前是写死的，后面优化应该能够由用户去自定义实现
+func CallBackToClient(conn *net.TCPConn, data []byte, cnt int) error {
+    fmt.Println("[Conn Handler] CallBackToClient ...")
+    if _, err := conn.Write(data[:cnt]); err != nil {
+        fmt.Println("conn write error: ", err)
+        return errors.New("CallBackToClient error")   // 出错
+    }
+
+    return nil   // 成功
+} 
 
 
 //============== 实现 ziface.IServer 里的全部接口方法 ========
@@ -40,6 +53,10 @@ func (s *Server) Start() {
         }
     
         fmt.Println("start Zinx server  ", s.Name, " succ, now listenning...")  // 监听成功
+        
+        // 用于创建connID
+        var cid uint32
+        cid = 0
     
         // 3. 阻塞等待客户端连接，处理客户端连接业务（读写）
         for {
@@ -52,25 +69,11 @@ func (s *Server) Start() {
     
             // 3.2 TODO Server.Start() 设置服务器最大连接控制,如果超过最大连接，那么则关闭此新的连接
     
-            // 3.3 TODO Server.Start() 处理该新连接请求的业务方法，此时应该有handler和conn是绑定的
-    
-            // 先实现一个简单的回显逻辑，最大回显字符数量是512
-            go func() {  // 通过协程启动异步写回
-                for {
-                    buf := make([]byte, 512)
-                    cnt, err := conn.Read(buf)
-                    if err != nil {
-                        fmt.Println("recv err: ", err)
-                        continue
-                    }
-                    // 回显
-                    if _, err := conn.Write(buf[:cnt]); err != nil {
-                        fmt.Println("write back err: ", err)
-                        continue
-                    }
-                }
-            }()
+            // 3.3 处理该新连接请求的业务方法，此时应该有handler和conn是绑定的，得到连接模块对象
+            dealConn := NewConnection(conn, cid, CallBackToClient)
+            cid++
             
+            go dealConn.Start()  // 启动连接处理
         }
     }()
 }
