@@ -14,20 +14,20 @@ type Connection struct {
 	ConnID uint32
 	// 当前连接的状态	
 	isClosed bool
-	
-	// 当前连接的业务处理方法api
-	handleAPI ziface.HandleFunc
 
 	// 告知该连接已经停止的channel
 	ExitBuffChan chan bool
+
+	// 当前连接所对应的路由
+	Router ziface.IRouter
 }
 
 // 构造函数：创建一个连接
-func NewConnection(conn *net.TCPConn, connID uint32, callbackAPI ziface.HandleFunc) *Connection {
+func NewConnection(conn *net.TCPConn, connID uint32, router ziface.IRouter) *Connection {
 	return &Connection{
 		Conn: conn,
 		ConnID: connID,
-		handleAPI: callbackAPI,
+		Router: router,
 		isClosed: false,
 		ExitBuffChan: make(chan bool, 1),
 	}
@@ -44,18 +44,25 @@ func (c *Connection) StartReader() {
 	for {
 		// 读取客户端的数据到buf中，目前只考虑最大512字节
 		buf := make([]byte, 512)
-		cnt, err := c.Conn.Read(buf)
+		_, err := c.Conn.Read(buf)
 		if err != nil {
 			fmt.Println("conn read error: ", err)
 			continue
 		}
 
-		// 调用当前连接所绑定的处理业务的API
-		err = c.handleAPI(c.Conn, buf, cnt)
-		if err != nil {
-			fmt.Println("CoonID", c.ConnID, "handler api is error: ", err)
-			break
+		// 首先，基于连接和数据构建Request对象
+		req := Request{
+			conn: c,
+			data: buf,
 		}
+
+		// 从当前连接的路由中找到对应的处理方法，并执行
+		go func(request ziface.IRequest) {
+			c.Router.PreHandle(request)
+			c.Router.Handle(request)
+			c.Router.PostHandle(request)
+		} (&req)
+
 	}
 }
 

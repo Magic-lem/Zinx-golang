@@ -5,7 +5,7 @@ import (
     "net"
     "time"
     "workspace/src/zinx/ziface"
-    "errors"
+    // "errors"
 )
 
 
@@ -15,20 +15,8 @@ type Server struct {
     IPVersion string
     IP string
     Port int
+    Router ziface.IRouter   // 当前Server注册的连接所对应的路由
 }
-
-//============== 定义一个回显的业务处理API ===================
-// TODO：目前是写死的，后面优化应该能够由用户去自定义实现
-func CallBackToClient(conn *net.TCPConn, data []byte, cnt int) error {
-    fmt.Println("[Conn Handler] CallBackToClient ...")
-    if _, err := conn.Write(data[:cnt]); err != nil {
-        fmt.Println("conn write error: ", err)
-        return errors.New("CallBackToClient error")   // 出错
-    }
-
-    return nil   // 成功
-} 
-
 
 //============== 实现 ziface.IServer 里的全部接口方法 ========
 
@@ -70,7 +58,7 @@ func (s *Server) Start() {
             // 3.2 TODO Server.Start() 设置服务器最大连接控制,如果超过最大连接，那么则关闭此新的连接
     
             // 3.3 处理该新连接请求的业务方法，此时应该有handler和conn是绑定的，得到连接模块对象
-            dealConn := NewConnection(conn, cid, CallBackToClient)
+            dealConn := NewConnection(conn, cid, s.Router)
             cid++
             
             go dealConn.Start()  // 启动连接处理
@@ -98,6 +86,12 @@ func (s *Server) Stop() {
     //TODO  Server.Stop() 将其他需要清理的连接信息或者其他信息 也要一并停止或者清理
 }
 
+// 路由功能，给当前的服务注册一个路由方法，供客户端连接使用
+func (s *Server) AddRouter(router ziface.IRouter) {
+    s.Router = router
+    fmt.Println("Add Router Succ!!")
+}
+
 func NewServer(name string) ziface.IServer {
     // 创建并返回Server类对象
     return &Server{
@@ -105,5 +99,6 @@ func NewServer(name string) ziface.IServer {
         IPVersion: "tcp4",
         IP: "0.0.0.0",
         Port: 1580,
+        Router: nil,   // 路由方法
     }
 }
