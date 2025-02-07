@@ -11,7 +11,7 @@ type Request struct {
 
 
 // 获取当前连接
-func (r *Request) GetConnetcion() ziface.IConnection {
+func (r *Request) GetConnection() ziface.IConnection {
 	return r.conn
 }
 

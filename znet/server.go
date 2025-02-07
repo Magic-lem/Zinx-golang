@@ -5,6 +5,7 @@ import (
     "net"
     "time"
     "workspace/src/zinx/ziface"
+    "workspace/src/zinx/utils"
     // "errors"
 )
 
@@ -23,6 +24,12 @@ type Server struct {
 // 启动服务器
 func (s *Server) Start() {
     fmt.Printf("[START] Server listenner at IP: %s, Port %d, is starting\n", s.IP, s.Port)
+
+    // 打印一下配置信息
+	fmt.Printf("[Zinx] Version: %s, MaxConn: %d,  MaxPacketSize: %d\n",
+		utils.GlobalObject.Version,
+		utils.GlobalObject.MaxConn,
+		utils.GlobalObject.MaxPacketSize)
 
      // 开启一个goroutine去做服务端Linster业务，主goroutine接着返回
     go func() {
@@ -95,10 +102,10 @@ func (s *Server) AddRouter(router ziface.IRouter) {
 func NewServer(name string) ziface.IServer {
     // 创建并返回Server类对象
     return &Server{
-        Name: name,
+        Name: utils.GlobalObject.Name,    // 使用全局配置类的参数
         IPVersion: "tcp4",
-        IP: "0.0.0.0",
-        Port: 1580,
+        IP: utils.GlobalObject.Host,
+        Port: utils.GlobalObject.TcpPort,
         Router: nil,   // 路由方法
     }
 }
