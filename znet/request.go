@@ -6,7 +6,7 @@ import (
 
 type Request struct {
 	conn ziface.IConnection   // 已经和客户端建立好的连接对象
-	data []byte // 来自客户端的请求数据
+	msg ziface.IMessage		  // 客户端请求消息        update：Zinx-V0.5修改为封装好的消息类型
 }
 
 
@@ -17,5 +17,10 @@ func (r *Request) GetConnection() ziface.IConnection {
 
 // 获取当前请求消息数据
 func (r *Request) GetData() []byte {
-	return r.data
+	return r.msg.GetData()   // update：Zinx-V0.5修改为从消息中提取
+}
+
+// Zinx-V0.5 获取当前请求小的ID
+func (r *Request) GetMsgId() uint32 {
+	return r.msg.GetMsgId()   
 }

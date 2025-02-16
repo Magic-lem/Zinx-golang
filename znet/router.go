@@ -9,9 +9,9 @@ type BaseRouter struct {}
 
 // 下面函数都没有实现，因为这是基类，后面具体的Router类需要重写
 // 在处理conn业务之前的钩子方法Hook
-func (br *BaseRouter) PreHandler(request ziface.IRequest) {}
+func (br *BaseRouter) PreHandle(request ziface.IRequest) {}
 // 处理coon业务的主方法Hook
-func (br *BaseRouter) Handler(request ziface.IRequest) {}
+func (br *BaseRouter) Handle(request ziface.IRequest) {}
 // 在处理conn业务之后的钩子方法Hook
-func (br *BaseRouter) PostHandler(request ziface.IRequest) {}
+func (br *BaseRouter) PostHandle(request ziface.IRequest) {}
 
