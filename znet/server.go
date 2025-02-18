@@ -16,7 +16,7 @@ type Server struct {
     IPVersion string
     IP string
     Port int
-    Router ziface.IRouter   // 当前Server注册的连接所对应的路由
+    MsgHandler ziface.IMsgHandle   // ZinxV0.6 update，消息管理模块，可以保存多个msgId-路由
 }
 
 //============== 实现 ziface.IServer 里的全部接口方法 ========
@@ -65,7 +65,7 @@ func (s *Server) Start() {
             // 3.2 TODO Server.Start() 设置服务器最大连接控制,如果超过最大连接，那么则关闭此新的连接
     
             // 3.3 处理该新连接请求的业务方法，此时应该有handler和conn是绑定的，得到连接模块对象
-            dealConn := NewConnection(conn, cid, s.Router)
+            dealConn := NewConnection(conn, cid, s.MsgHandler)
             cid++
             
             go dealConn.Start()  // 启动连接处理
@@ -94,9 +94,10 @@ func (s *Server) Stop() {
 }
 
 // 路由功能，给当前的服务注册一个路由方法，供客户端连接使用
-func (s *Server) AddRouter(router ziface.IRouter) {
-    s.Router = router
-    fmt.Println("Add Router Succ!!")
+// ZinxV0.6 update：删除Router属性，而是增加到消息管理模块MsgHandler中
+func (s *Server) AddRouter(msgId uint32, router ziface.IRouter) {
+    s.MsgHandler.AddRouter(msgId, router)
+    fmt.Println("MsgHandler Add Router Succ!!")
 }
 
 func NewServer(name string) ziface.IServer {
@@ -106,6 +107,6 @@ func NewServer(name string) ziface.IServer {
         IPVersion: "tcp4",
         IP: utils.GlobalObject.Host,
         Port: utils.GlobalObject.TcpPort,
-        Router: nil,   // 路由方法
+        MsgHandler: NewMsgHandle(),  
     }
 }

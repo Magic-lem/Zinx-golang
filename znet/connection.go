@@ -20,16 +20,16 @@ type Connection struct {
 	// 告知该连接已经停止的channel
 	ExitBuffChan chan bool
 
-	// 当前连接所对应的路由
-	Router ziface.IRouter
+	// ZinxV0.6 update：消息管理模块
+	MsgHandler ziface.IMsgHandle
 }
 
 // 构造函数：创建一个连接
-func NewConnection(conn *net.TCPConn, connID uint32, router ziface.IRouter) *Connection {
+func NewConnection(conn *net.TCPConn, connID uint32, msgHandler ziface.IMsgHandle) *Connection {
 	return &Connection{
 		Conn: conn,
 		ConnID: connID,
-		Router: router,
+		MsgHandler: msgHandler,
 		isClosed: false,
 		ExitBuffChan: make(chan bool, 1),
 	}
@@ -77,13 +77,8 @@ func (c *Connection) StartReader() {
 			msg: msg,
 		}
 
-		// 3. 从当前连接的路由中找到对应的处理方法，并执行
-		go func(request ziface.IRequest) {
-			c.Router.PreHandle(request)
-			c.Router.Handle(request)
-			c.Router.PostHandle(request)
-		} (&req)
-
+		// 3. 从消息管理模块中找到对应的处理方法，并执行
+		go c.MsgHandler.DoMsgHandler(&req)
 	}
 }
 
