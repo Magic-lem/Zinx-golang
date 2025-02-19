@@ -33,6 +33,9 @@ func (s *Server) Start() {
 
      // 开启一个goroutine去做服务端Linster业务，主goroutine接着返回
     go func() {
+        // 0. ZinxV0.6 update: 启动协程池
+        s.MsgHandler.StartWorkerPool()
+
         // 1.获取一个TCP的Addr
         addr, err := net.ResolveTCPAddr(s.IPVersion, fmt.Sprintf("%s:%d", s.IP, s.Port))
         if err != nil {

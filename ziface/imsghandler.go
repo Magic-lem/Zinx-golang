@@ -6,4 +6,8 @@ type IMsgHandle interface {
 	DoMsgHandler(request IRequest)
 	// 添加路由方法到Map中
 	AddRouter(msgId uint32, router IRouter)
+	// 启动业务Worker工作池
+	StartWorkerPool()
+	// 将消息提交给TaskQueue的API
+	SendMsgToTaskQueue(request IRequest)
 }

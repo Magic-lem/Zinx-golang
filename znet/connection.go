@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"workspace/src/zinx/ziface"
+	"workspace/src/zinx/utils"
 )
 
 
@@ -81,8 +82,15 @@ func (c *Connection) StartReader() {
 			msg: msg,
 		}
 
-		// 3. 从消息管理模块中找到对应的处理方法，并执行
-		go c.MsgHandler.DoMsgHandler(&req)
+		// 3. ZinxV0.6 update: 
+		if utils.GlobalObject.WorkerPoolSize > 0 {
+			// -- 3.1 若是启动了协程池，则将消息添加到消息队列中
+			c.MsgHandler.SendMsgToTaskQueue(&req)
+		} else {
+			// -- 3.2 否则，直接从消息管理模块中找到对应的处理方法，并执行
+			go c.MsgHandler.DoMsgHandler(&req)
+		}
+		
 	}
 }
 
