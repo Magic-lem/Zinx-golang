@@ -17,11 +17,14 @@ type Connection struct {
 	// 当前连接的状态	
 	isClosed bool
 
-	// 告知该连接已经停止的channel
+	// 告知该连接已经停止的channel（由Reader告知Writer）
 	ExitBuffChan chan bool
 
 	// ZinxV0.6 update：消息管理模块
 	MsgHandler ziface.IMsgHandle
+
+	// ZinV0.7 update：读和写Goroutine之间的通信管道
+	msgChan chan []byte
 }
 
 // 构造函数：创建一个连接
@@ -32,15 +35,16 @@ func NewConnection(conn *net.TCPConn, connID uint32, msgHandler ziface.IMsgHandl
 		MsgHandler: msgHandler,
 		isClosed: false,
 		ExitBuffChan: make(chan bool, 1),
+		msgChan: make(chan []byte),
 	}
 }
 
 // 连接的读业务方法
 func (c *Connection) StartReader() {
-	fmt.Println("Reader Goroutine is running...")
+	fmt.Println("[Reader Goroutine is running...]")
 
 	// 当此方法结束后执行退出
-	defer fmt.Println("connID = ", c.ConnID, "Reader is eixt, remote addr is ", c.GetRemoteAddr().String())
+	defer fmt.Println("[Reader is eixt], connID = ", c.ConnID, ", remote addr is ", c.GetRemoteAddr().String())
 	defer c.Stop()
 
 	for {
@@ -82,6 +86,28 @@ func (c *Connection) StartReader() {
 	}
 }
 
+// 连接的写业务方法，专门向客户端发送消息
+func (c *Connection) StartWriter() {
+	fmt.Println("[Writer Goroutine is running...]")
+	defer fmt.Println("[Writer is eixt], connID = ", c.ConnID, ", remote addr is ", c.GetRemoteAddr().String())
+
+	// 不断阻塞等待channel的消息，一旦读取到消息则发送给客户端
+	for {
+		select {
+		case data := <- c.msgChan:
+			// 有数据要发送给客户端
+			if _, err := c.Conn.Write(data); err != nil {
+				fmt.Println("conn write err: ", err, " Conn Writer exit")
+				return
+			}
+		case <- c.ExitBuffChan:
+			// Reader告知Writer当前连接已关闭
+			return
+		}
+	}
+	
+}
+
 // 启动连接，让当前连接开始工作
 func (c *Connection) Start() {
 	// 打印日志
@@ -90,7 +116,8 @@ func (c *Connection) Start() {
 	// 开启一个从当前连接读数据的业务
 	go c.StartReader()
 
-	// TODO 开启一个从当前连接写数据的业务
+	// 开启一个从当前连接写数据的业务
+	go c.StartWriter()
 
 }
 
@@ -107,8 +134,12 @@ func (c *Connection) Stop() {
 	// 关闭当前连接
 	c.Conn.Close()
 
+	// 告知Writer关闭
+	c.ExitBuffChan <- true
+
 	// 回收连接中的管道
 	close(c.ExitBuffChan)
+	close(c.msgChan)
 }
 
 // 获取当前连接的socket TCPConn
@@ -141,11 +172,8 @@ func (c *Connection) SendMsg(msgId uint32, data []byte) error {
 		return errors.New("pack msg error")
 	}
 
-	// 发送数据
-	if _, err := c.Conn.Write(binaryMsg); err != nil {
-		fmt.Println("conn write msg id ", msgId, ", error: ", err)
-		return errors.New("conn Write error")
-	}
+	// Zinx V0.7 update：将要发送给客户端的消息写到msgChan，由写Goroutine异步写回
+	c.msgChan <- binaryMsg
 
 	return nil
 }
