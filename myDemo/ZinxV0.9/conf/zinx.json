@@ -1,0 +1,8 @@
+{
+    "Name": "zinx v0.9 demoServerApp",
+    "Host": "127.0.0.1",
+    "TcpPort": 1580,
+    "MaxConn": 2,
+    "WorkerPoolSize": 10,
+    "MaxWorkerTaskLen": 1024
+}

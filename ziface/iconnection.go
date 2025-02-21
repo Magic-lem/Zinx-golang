@@ -16,6 +16,8 @@ type IConnection interface {
 	GetRemoteAddr() net.Addr
 	// 发送数据，将数据发送给远程的客户端
 	SendMsg(uint32, []byte) error
+	// 带有缓冲的发送数据，非阻塞地将数据发送给远程的客户端
+	SendBuffMsg(uint32, []byte) error
 }
 
 // 定义一个处理链接的业务

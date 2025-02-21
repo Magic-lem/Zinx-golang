@@ -11,6 +11,8 @@ import (
 
 
 type Connection struct {
+	// 当前connection是属于哪个server的
+	TcpServer ziface.IServer
 	// 当前连接的socket TCP套接字
 	Conn *net.TCPConn
 	// 连接的ID
@@ -26,18 +28,27 @@ type Connection struct {
 
 	// ZinV0.7 update：读和写Goroutine之间的通信管道
 	msgChan chan []byte
+
+	// ZinV0.9 update：读和写Goroutine之间带缓冲的通信管道
+	msgBuffChan chan []byte
 }
 
 // 构造函数：创建一个连接
-func NewConnection(conn *net.TCPConn, connID uint32, msgHandler ziface.IMsgHandle) *Connection {
-	return &Connection{
+func NewConnection(server ziface.IServer, conn *net.TCPConn, connID uint32, msgHandler ziface.IMsgHandle) *Connection {
+	c := &Connection{
+		TcpServer: server,
 		Conn: conn,
 		ConnID: connID,
 		MsgHandler: msgHandler,
 		isClosed: false,
 		ExitBuffChan: make(chan bool, 1),
 		msgChan: make(chan []byte),
+		msgBuffChan: make(chan []byte, utils.GlobalObject.MaxMsgChanLen),
 	}
+
+	// Zinx V0.9 update：将新建的连接加入到连接管理模块中
+	c.TcpServer.GetConnMgr().Add(c)
+	return c
 }
 
 // 连接的读业务方法
@@ -108,6 +119,17 @@ func (c *Connection) StartWriter() {
 				fmt.Println("conn write err: ", err, " Conn Writer exit")
 				return
 			}
+		// ZinxV0.9 update：增加对msgBuffChan的监控
+		case data, ok := <- c.msgBuffChan:
+			if ok { //有数据要写给客户端
+				if _, err := c.Conn.Write(data); err != nil {
+					fmt.Println("conn write err: ", err, " Conn Writer exit")
+					return
+				}
+			} else {
+				fmt.Println("msgBuffChan is Closed")
+				break
+			}
 		case <- c.ExitBuffChan:
 			// Reader告知Writer当前连接已关闭
 			return
@@ -127,6 +149,9 @@ func (c *Connection) Start() {
 	// 开启一个从当前连接写数据的业务
 	go c.StartWriter()
 
+	// ZinxV0.9 Update：连接建立之后，自动调用注册的回调函数
+	c.TcpServer.CallOnConnStart(c)
+
 }
 
 // 停止连接，结束当前连接状态
@@ -139,11 +164,18 @@ func (c *Connection) Stop() {
 		return
 	}
 
+	// ZinxV0.9 Update：连接关闭之前，自动调用注册的回调函数
+	c.TcpServer.CallOnConnStop(c)
+
 	// 关闭当前连接
 	c.Conn.Close()
 
 	// 告知Writer关闭
 	c.ExitBuffChan <- true
+
+	// Zinx V0.9 update：将当前连接从消息管理模块中移除
+	// TODO：若是ConnMgr.ClearConn()执行调用的Stop()是不是就导致死锁了？
+	c.TcpServer.GetConnMgr().Remove(c)
 
 	// 回收连接中的管道
 	close(c.ExitBuffChan)
@@ -182,6 +214,26 @@ func (c *Connection) SendMsg(msgId uint32, data []byte) error {
 
 	// Zinx V0.7 update：将要发送给客户端的消息写到msgChan，由写Goroutine异步写回
 	c.msgChan <- binaryMsg
+
+	return nil
+}
+
+// ZinxV0.9 update：带有缓冲的发送数据，非阻塞地将数据发送给远程的客户端
+func (c *Connection) SendBuffMsg(msgId uint32, data []byte) error {
+	// 判断下连接是否关闭
+	if c.isClosed == true {
+		return errors.New("Connection closed when send msg")
+	}
+
+	// 将数据进行封包
+	dp := NewDataPack()
+	binaryMsg, err := dp.Pack(NewMsgPackage(msgId, data))
+	if err != nil {
+		fmt.Println("pack msg err: ", err)
+		return errors.New("pack msg error")
+	}
+
+	c.msgBuffChan <- binaryMsg
 
 	return nil
 }

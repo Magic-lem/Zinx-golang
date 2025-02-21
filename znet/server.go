@@ -17,6 +17,9 @@ type Server struct {
     IP string
     Port int
     MsgHandler ziface.IMsgHandle   // ZinxV0.6 update，消息管理模块，可以保存多个msgId-路由
+    ConnMgr ziface.IConnManager  // ZinxV0.9 update，连接管理模块 
+    OnConnStart func(conn ziface.IConnection)  // ZinxV0.9 update：Server创建连接后自动调用的Hook函数属性 — OnConnStart
+    OnConnStop func(conn ziface.IConnection)  // ZinxV0.9 update：Server销毁连接前自动调用的Hook函数属性 — OnConnStop
 }
 
 //============== 实现 ziface.IServer 里的全部接口方法 ========
@@ -65,10 +68,16 @@ func (s *Server) Start() {
                 continue
             }
     
-            // 3.2 TODO Server.Start() 设置服务器最大连接控制,如果超过最大连接，那么则关闭此新的连接
+            // 3.2 ZinxV0.9 Update： 设置服务器最大连接控制，如果超过最大连接，那么则关闭此新的连接，不继续
+            if s.ConnMgr.Len() >= utils.GlobalObject.MaxConn {
+                // TODO：给客户端发送一个超出一个最大连接的错误包
+                fmt.Println("Too Many Connections, MaxConn = ", utils.GlobalObject.MaxConn)
+                conn.Close()
+                continue
+            }
     
             // 3.3 处理该新连接请求的业务方法，此时应该有handler和conn是绑定的，得到连接模块对象
-            dealConn := NewConnection(conn, cid, s.MsgHandler)
+            dealConn := NewConnection(s, conn, cid, s.MsgHandler)
             cid++
             
             go dealConn.Start()  // 启动连接处理
@@ -93,7 +102,8 @@ func (s *Server) Serve() {
 func (s *Server) Stop() {
     fmt.Println("[STOP] Zinx server , name " , s.Name)
 
-    //TODO  Server.Stop() 将其他需要清理的连接信息或者其他信息 也要一并停止或者清理
+    // 将其他需要清理的连接信息或者其他信息 也要一并停止或者清理
+    s.ConnMgr.ClearConn()  // ZinxV0.9 update 清理连接
 }
 
 // 路由功能，给当前的服务注册一个路由方法，供客户端连接使用
@@ -101,6 +111,11 @@ func (s *Server) Stop() {
 func (s *Server) AddRouter(msgId uint32, router ziface.IRouter) {
     s.MsgHandler.AddRouter(msgId, router)
     fmt.Println("MsgHandler Add Router Succ!!")
+}
+
+// ZinxV0.9 update：获取Server的消息管理模块
+func (s *Server) GetConnMgr() ziface.IConnManager {
+    return s.ConnMgr
 }
 
 func NewServer(name string) ziface.IServer {
@@ -111,5 +126,34 @@ func NewServer(name string) ziface.IServer {
         IP: utils.GlobalObject.Host,
         Port: utils.GlobalObject.TcpPort,
         MsgHandler: NewMsgHandle(),  
+        ConnMgr: NewConnManager(),
+        OnConnStart: nil,
+        OnConnStop: nil,
+    }
+}
+
+// ZinxV0.9 update：注册OnConnStart钩子函数的API
+func (s *Server) SetOnConnStart(hookFunc func(connection ziface.IConnection)) {
+    s.OnConnStart = hookFunc
+}
+
+// ZinxV0.9 update：注册OnConnStop钩子函数的API
+func (s *Server) SetOnConnStop(hookFunc func(connection ziface.IConnection)) {
+    s.OnConnStop = hookFunc
+}
+
+// ZinxV0.9 update：调用OnConnStart钩子函数的方法
+func (s *Server) CallOnConnStart(connection ziface.IConnection) {
+    if s.OnConnStart != nil {
+        fmt.Println("-----> Call OnConnStart()...")
+        s.OnConnStart(connection)
+    }
+}
+
+// ZinxV0.9 update：调用OnConnStop钩子函数的方法
+func (s *Server) CallOnConnStop(connection ziface.IConnection) {
+    if s.OnConnStop != nil {
+        fmt.Println("-----> Call OnConnStop()...")
+        s.OnConnStop(connection)
     }
 }
