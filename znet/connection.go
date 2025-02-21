@@ -5,6 +5,7 @@ import (
 	"net"
 	"errors"
 	"io"
+	"sync"
 	"workspace/src/zinx/ziface"
 	"workspace/src/zinx/utils"
 )
@@ -31,6 +32,12 @@ type Connection struct {
 
 	// ZinV0.9 update：读和写Goroutine之间带缓冲的通信管道
 	msgBuffChan chan []byte
+
+	// ZinxV0.10 update：连接属性集合
+	property map[string]interface{}
+
+	// ZinxV0.10 update：保护连接属性集合的互斥锁
+	propertyLock sync.RWMutex
 }
 
 // 构造函数：创建一个连接
@@ -44,6 +51,7 @@ func NewConnection(server ziface.IServer, conn *net.TCPConn, connID uint32, msgH
 		ExitBuffChan: make(chan bool, 1),
 		msgChan: make(chan []byte),
 		msgBuffChan: make(chan []byte, utils.GlobalObject.MaxMsgChanLen),
+		property: make(map[string]interface{}),
 	}
 
 	// Zinx V0.9 update：将新建的连接加入到连接管理模块中
@@ -236,4 +244,35 @@ func (c *Connection) SendBuffMsg(msgId uint32, data []byte) error {
 	c.msgBuffChan <- binaryMsg
 
 	return nil
+}
+
+// ZinxV0.10 update：设置连接属性
+func (c *Connection) SetProperty(key string, value interface{}) {
+	c.propertyLock.Lock()  // 加写锁
+	defer c.propertyLock.Unlock()
+
+	// 添加一个属性到Map中
+	c.property[key] = value
+}
+
+// ZinxV0.10 update：获取连接属性
+func (c *Connection) GetProperty(key string) (interface{}, error) {
+	c.propertyLock.RLock()  // 加读锁
+	defer c.propertyLock.RUnlock()
+
+	// 读取，判断是否存在
+	if value, ok := c.property[key]; ok {
+		return value, nil
+	} else {
+		return nil, errors.New("no connection property found!")
+	}
+}
+
+// ZinxV0.10 update：移除连接属性
+func (c *Connection) RemoveProperty(key string) {
+	c.propertyLock.Lock()  // 加写锁
+	defer c.propertyLock.Unlock()
+
+	// 添加一个属性到Map中
+	delete(c.property, key)
 }
