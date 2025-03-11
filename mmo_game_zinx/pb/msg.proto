@@ -1,0 +1,38 @@
+syntax = "proto3";              // proto协议
+package pb;                     // 包名
+option csharp_namespace="Pb";   // 给C#提供的选项
+option go_package = "./";       // 让生成的 Go 代码放在当前目录
+
+message SyncPid {
+    int32 Pid = 1;
+}
+
+message Talk {
+    string Content = 1;
+}
+
+message Position {
+    float X = 1;
+    float Y = 2;
+    float Z = 3;
+    float V = 4;
+}
+
+message BrodCast {
+    int32 Pid = 1;
+    int32 Tp = 2;
+    oneof Data {
+        string Content = 3;
+        Position P = 4;
+        int32 ActionData = 5;
+    }
+}
+
+message Player {
+    int32 Pid = 1;
+    Position P = 2;
+}
+
+message SyncPlayers {
+    repeated Player ps = 1;     // ps 字段是一个 Player 类型的可变长数组(可以是 0、1 或多个元素)，可以存储多个 Player 实例。
+}

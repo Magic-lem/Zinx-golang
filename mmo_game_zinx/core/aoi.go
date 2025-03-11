@@ -121,10 +121,10 @@ func (aoiMgr *AOIManager) GetGIDByPos(x, y float32) int {
 // 通过横纵坐标得到周边九宫格内的全部PlayerIDs
 func (aoiMgr *AOIManager) GetPIDsByPos(x, y float32) (playerIDs []int) {
 	// 求出坐标所在的格子ID
-	gID := GetGIDByPos(x, y)
+	gID := aoiMgr.GetGIDByPos(x, y)
 
 	// 根据格子ID获取周边九宫格
-	grids := GetSurroundGridsByGid(gID)
+	grids := aoiMgr.GetSurroundGridsByGid(gID)
 
 	// 遍历九宫格来搜集所有玩家
 	for _, grid := range grids {
