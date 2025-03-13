@@ -4,6 +4,16 @@ import (
 	"fmt"
 )
 
+// 定义一些AOI的边界值宏
+const (
+	AOI_MIN_X int = 85
+	AOI_MAX_X int = 410
+	AOI_CNTS_X int = 10
+	AOI_MIN_Y int = 75
+	AOI_MAX_Y int = 40
+	AOI_CNTS_Y int = 20
+)
+
 /*
 	AOI管理模块
 */
@@ -17,7 +27,7 @@ type AOIManager struct {
 	grids       map[int] *Grid	// 当前区域中都有哪些格子，key=格子ID， value=格子对象
 }
 
-// 初始化一个AOI区域
+// 初始化一个AOI管理模块
 func NewAOIManager(minX, maxX, cntsX, minY, maxY, cntsY int) *AOIManager {
 	aoiMgr := &AOIManager{
 		MinX: minX,
