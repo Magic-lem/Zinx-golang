@@ -1,4 +1,4 @@
-package main
+package core
 
 import (
 	"sync"
@@ -33,16 +33,16 @@ func (wm *WorldManager) AddPlayer(player *Player) {
 	wm.pLock.Unlock()  // 解锁
 
 	// 将player添加到AOIManager中
-	wm.AoiMgr.AddToGridByPos(player.Pid, player.X, player.Z)
+	wm.AoiMgr.AddToGridByPos(int(player.Pid), player.X, player.Z)
 }
 
 // 提供删除一个玩家的的功能，将玩家从玩家信息表Players删除
 func (wm *WorldManager) RemovePlayerByPid(pid int32) {
 	// 将player添加到AOIManager中
 	wm.pLock.RLock()  // 加读锁
-	plyaer := vm.Players[pid]  
+	player := wm.Players[pid]  
 	wm.pLock.RUnlock()  // 解读锁
-	wm.AoiMgr.RemovePidFromGrid(pid, player.X, player.Z)
+	wm.AoiMgr.RemoveFromGridByPos(int(pid), player.X, player.Z)
 
 	wm.pLock.Lock()  // 加锁
 	delete(wm.Players, pid)
@@ -50,22 +50,22 @@ func (wm *WorldManager) RemovePlayerByPid(pid int32) {
 }
 
 // 通过玩家ID查询Player对象
-func (wm *WorldManager) GetPlayerByPid(pid int32) {
+func (wm *WorldManager) GetPlayerByPid(pid int32) *Player {
 	wm.pLock.RLock()  // 加读锁
 	defer wm.pLock.RUnlock()  // 解读锁
-	return vm.Players[pid]  
+	return wm.Players[pid]  
 }
 
 // 获取全部的在线玩家
-func (wm *WorldManager) GetAllPlayer() []*Players {
+func (wm *WorldManager) GetAllPlayer() []*Player {
 	wm.pLock.RLock()  // 加读锁
 	defer wm.pLock.RUnlock()  // 解读锁
 	
-	players := make([]*Players, 0)
+	players := make([]*Player, 0)
 
 	// 将所有玩家添加到切片players中
-	for _, p := range vm.Players {
-		players = append(players, P)
+	for _, p := range wm.Players {
+		players = append(players, p)
 	}
 
 	return players

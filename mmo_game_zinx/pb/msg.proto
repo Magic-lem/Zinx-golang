@@ -28,11 +28,13 @@ message BrodCast {
     }
 }
 
+// 玩家信息
 message Player {
     int32 Pid = 1;
     Position P = 2;
 }
 
+// 同步玩家的显示数据
 message SyncPlayers {
     repeated Player ps = 1;     // ps 字段是一个 Player 类型的可变长数组(可以是 0、1 或多个元素)，可以存储多个 Player 实例。
 }

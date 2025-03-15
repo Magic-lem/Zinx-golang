@@ -97,3 +97,24 @@ func (p *Player) BrodCastStartPosition() {
 	// 将消息发送给客户端
 	p.SendMsg(200, proto_msg)
 }
+
+// 玩家向世界广播聊天消息
+func (p *Player) Talk(content string) {
+	// 1. 组建MsgID：200的消息
+	proto_msg := &pb.BrodCast{
+		Pid: p.Pid,
+		Tp: 1,   // TP为2代表世界聊天消息
+		Data: &pb.BrodCast_Content{
+			Content: content,
+		},
+	}
+
+	// 2. 得到当前世界所有的在线玩家
+	players := WorldMgrObj.GetAllPlayer()
+
+	// 3. 向所有玩家（包括自己）发送MsgID=200的消息
+	for _, player := range players {
+		// 每个玩家的服务器向对应客户端发送消息
+		player.SendMsg(200, proto_msg)   
+	}
+}
