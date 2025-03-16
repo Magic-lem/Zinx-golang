@@ -1,15 +1,14 @@
 package znet
 
 import (
-	"fmt"
-	"net"
 	"errors"
+	"fmt"
 	"io"
+	"net"
 	"sync"
-	"workspace/src/zinx/ziface"
 	"workspace/src/zinx/utils"
+	"workspace/src/zinx/ziface"
 )
-
 
 type Connection struct {
 	// 当前connection是属于哪个server的
@@ -18,7 +17,7 @@ type Connection struct {
 	Conn *net.TCPConn
 	// 连接的ID
 	ConnID uint32
-	// 当前连接的状态	
+	// 当前连接的状态
 	isClosed bool
 
 	// 告知该连接已经停止的channel（由Reader告知Writer）
@@ -43,15 +42,15 @@ type Connection struct {
 // 构造函数：创建一个连接
 func NewConnection(server ziface.IServer, conn *net.TCPConn, connID uint32, msgHandler ziface.IMsgHandle) *Connection {
 	c := &Connection{
-		TcpServer: server,
-		Conn: conn,
-		ConnID: connID,
-		MsgHandler: msgHandler,
-		isClosed: false,
+		TcpServer:    server,
+		Conn:         conn,
+		ConnID:       connID,
+		MsgHandler:   msgHandler,
+		isClosed:     false,
 		ExitBuffChan: make(chan bool, 1),
-		msgChan: make(chan []byte),
-		msgBuffChan: make(chan []byte, utils.GlobalObject.MaxMsgChanLen),
-		property: make(map[string]interface{}),
+		msgChan:      make(chan []byte),
+		msgBuffChan:  make(chan []byte, utils.GlobalObject.MaxMsgChanLen),
+		property:     make(map[string]interface{}),
 	}
 
 	// Zinx V0.9 update：将新建的连接加入到连接管理模块中
@@ -71,7 +70,7 @@ func (c *Connection) StartReader() {
 		// Zinx-V0.5修改，集成消息封装类型、拆包机制
 		// 1. 读取客户端的消息数据，并进行拆包
 		dp := NewDataPack()
-		
+
 		// - 1.1 读取消息头部并拆包
 		headData := make([]byte, dp.GetHaedLen())
 		if _, err := io.ReadFull(c.GetTCPConnection(), headData); err != nil {
@@ -88,7 +87,7 @@ func (c *Connection) StartReader() {
 		var data []byte
 		if msg.GetDataLen() > 0 {
 			data = make([]byte, msg.GetDataLen())
-			if _, err := io.ReadFull(c.GetTCPConnection(), data); err !=nil {
+			if _, err := io.ReadFull(c.GetTCPConnection(), data); err != nil {
 				fmt.Println("read msg err: ", err)
 				break
 			}
@@ -98,10 +97,10 @@ func (c *Connection) StartReader() {
 		// 2. 基于连接和数据构建Request对象
 		req := Request{
 			conn: c,
-			msg: msg,
+			msg:  msg,
 		}
 
-		// 3. ZinxV0.6 update: 
+		// 3. ZinxV0.6 update:
 		if utils.GlobalObject.WorkerPoolSize > 0 {
 			// -- 3.1 若是启动了协程池，则将消息添加到消息队列中
 			c.MsgHandler.SendMsgToTaskQueue(&req)
@@ -109,7 +108,7 @@ func (c *Connection) StartReader() {
 			// -- 3.2 否则，直接从消息管理模块中找到对应的处理方法，并执行
 			go c.MsgHandler.DoMsgHandler(&req)
 		}
-		
+
 	}
 }
 
@@ -121,14 +120,14 @@ func (c *Connection) StartWriter() {
 	// 不断阻塞等待channel的消息，一旦读取到消息则发送给客户端
 	for {
 		select {
-		case data := <- c.msgChan:
+		case data := <-c.msgChan:
 			// 有数据要发送给客户端
 			if _, err := c.Conn.Write(data); err != nil {
 				fmt.Println("conn write err: ", err, " Conn Writer exit")
 				return
 			}
 		// ZinxV0.9 update：增加对msgBuffChan的监控
-		case data, ok := <- c.msgBuffChan:
+		case data, ok := <-c.msgBuffChan:
 			if ok { //有数据要写给客户端
 				if _, err := c.Conn.Write(data); err != nil {
 					fmt.Println("conn write err: ", err, " Conn Writer exit")
@@ -138,12 +137,12 @@ func (c *Connection) StartWriter() {
 				fmt.Println("msgBuffChan is Closed")
 				break
 			}
-		case <- c.ExitBuffChan:
+		case <-c.ExitBuffChan:
 			// Reader告知Writer当前连接已关闭
 			return
 		}
 	}
-	
+
 }
 
 // 启动连接，让当前连接开始工作
@@ -248,7 +247,7 @@ func (c *Connection) SendBuffMsg(msgId uint32, data []byte) error {
 
 // ZinxV0.10 update：设置连接属性
 func (c *Connection) SetProperty(key string, value interface{}) {
-	c.propertyLock.Lock()  // 加写锁
+	c.propertyLock.Lock() // 加写锁
 	defer c.propertyLock.Unlock()
 
 	// 添加一个属性到Map中
@@ -257,7 +256,7 @@ func (c *Connection) SetProperty(key string, value interface{}) {
 
 // ZinxV0.10 update：获取连接属性
 func (c *Connection) GetProperty(key string) (interface{}, error) {
-	c.propertyLock.RLock()  // 加读锁
+	c.propertyLock.RLock() // 加读锁
 	defer c.propertyLock.RUnlock()
 
 	// 读取，判断是否存在
@@ -270,7 +269,7 @@ func (c *Connection) GetProperty(key string) (interface{}, error) {
 
 // ZinxV0.10 update：移除连接属性
 func (c *Connection) RemoveProperty(key string) {
-	c.propertyLock.Lock()  // 加写锁
+	c.propertyLock.Lock() // 加写锁
 	defer c.propertyLock.Unlock()
 
 	// 添加一个属性到Map中

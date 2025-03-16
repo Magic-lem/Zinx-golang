@@ -3,10 +3,10 @@ package main
 import (
 	"fmt"
 	"workspace/src/zinx/ziface"
-    "workspace/src/zinx/znet"
+	"workspace/src/zinx/znet"
 )
 
-//ping test 自定义路由
+// ping test 自定义路由
 type PingRouter struct {
 	znet.BaseRouter
 }
@@ -40,8 +40,8 @@ func main() {
 	//创建一个server句柄
 	s := znet.NewServer("[zinx V0.4]")
 
-    //配置路由
-	s.AddRouter(&PingRouter{})
+	//配置路由
+	s.AddRouter(1, &PingRouter{})
 
 	//开启服务
 	s.Serve()
