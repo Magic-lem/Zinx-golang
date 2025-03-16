@@ -6,26 +6,26 @@ import (
 )
 
 /*
-	一个AOI地图中的格子数据类型
+一个AOI地图中的格子数据类型
 */
 type Grid struct {
-	GID			int   			// 格子的ID
-	MinX		int	  			// 格子的左边边界坐标
-	MaxX		int				// 格子的右边边界坐标
-	MinY		int				// 格子的上边边界坐标
-	MaxY		int				// 格子的下边边界坐标
-	playerIDs	map[int]bool	// 格子内玩家/物体成员的ID集合
-	pIDLock		sync.RWMutex	// playerIDs的保护锁
+	GID       int          // 格子的ID
+	MinX      int          // 格子的左边边界坐标
+	MaxX      int          // 格子的右边边界坐标
+	MinY      int          // 格子的上边边界坐标
+	MaxY      int          // 格子的下边边界坐标
+	playerIDs map[int]bool // 格子内玩家/物体成员的ID集合
+	pIDLock   sync.RWMutex // playerIDs的保护锁
 }
 
 // 创建一个格子
 func NewGrid(gID, minX, maxX, minY, maxY int) *Grid {
 	return &Grid{
-		GID: gID,
-		MinX: minX,
-		MaxX: maxX,
-		MinY: minY,
-		MaxY: maxY,
+		GID:       gID,
+		MinX:      minX,
+		MaxX:      maxX,
+		MinY:      minY,
+		MaxY:      maxY,
 		playerIDs: make(map[int]bool),
 	}
 }
@@ -54,13 +54,12 @@ func (g *Grid) GetPlyerIDs() (playerIDs []int) {
 	g.pIDLock.RLock()
 	defer g.pIDLock.RUnlock()
 
-	for k, _ := range g.playerIDs {
+	for k := range g.playerIDs {
 		playerIDs = append(playerIDs, k)
 	}
 
 	return
 }
-
 
 // 打印出格子的基本信息
 func (g *Grid) String() string {
